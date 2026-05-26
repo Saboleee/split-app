@@ -5,6 +5,8 @@ import { splitClient } from "@/lib/stellar";
 import { getFreighterPublicKey } from "@/lib/freighter";
 import { formatAmount, parseAmount } from "@stellar-split/sdk";
 import PaymentProgress from "@/components/PaymentProgress";
+import StatusTimeline from "@/components/StatusTimeline";
+import DisputePanel from "@/components/DisputePanel";
 import type { Invoice } from "@stellar-split/sdk";
 
 interface Props {
@@ -22,6 +24,8 @@ export default function InvoiceDetailPage({ params }: Props) {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [disputing, setDisputing] = useState(false);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
 
   const load = async () => {
     const inv = await splitClient.getInvoice(id);
@@ -57,6 +61,21 @@ export default function InvoiceDetailPage({ params }: Props) {
     }
   };
 
+  const handleDispute = async () => {
+    if (!publicKey) return;
+    setDisputeError(null);
+    setDisputing(true);
+    try {
+      await (splitClient as unknown as { disputeInvoice: (p: { caller: string; invoiceId: string }) => Promise<void> })
+        .disputeInvoice({ caller: publicKey, invoiceId: id });
+      await load();
+    } catch (err) {
+      setDisputeError(String(err));
+    } finally {
+      setDisputing(false);
+    }
+  };
+
   if (error && !invoice) {
     return (
       <main className="max-w-xl mx-auto px-6 py-20 text-center">
@@ -89,6 +108,9 @@ export default function InvoiceDetailPage({ params }: Props) {
           {invoice.status}
         </span>
       </div>
+
+      {/* Status Timeline */}
+      <StatusTimeline invoice={invoice} total={total} />
 
       {/* Progress */}
       <div className="mb-8">
@@ -150,6 +172,17 @@ export default function InvoiceDetailPage({ params }: Props) {
         <p className="text-gray-400 text-sm">
           This invoice is {invoice.status.toLowerCase()} and no longer accepts payments.
         </p>
+      )}
+
+      {/* Dispute */}
+      {publicKey && (
+        <DisputePanel
+          invoice={invoice}
+          publicKey={publicKey}
+          onDispute={handleDispute}
+          disputing={disputing}
+          disputeError={disputeError}
+        />
       )}
     </main>
   );

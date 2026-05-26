@@ -24,6 +24,8 @@ export default function NewInvoicePage() {
   const [token, setToken] = useState(
     process.env.NEXT_PUBLIC_USDC_ADDRESS ?? ""
   );
+  const [recurring, setRecurring] = useState(false);
+  const [intervalDays, setIntervalDays] = useState<7 | 30>(7);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +45,7 @@ export default function NewInvoicePage() {
         })),
         token,
         deadline: deadlineFromDays(deadlineDays),
+        ...(recurring && { recurring, intervalDays }),
       });
 
       router.push(`/invoice/${invoiceId}`);
@@ -95,6 +98,39 @@ export default function NewInvoicePage() {
             required
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+        </div>
+
+        {/* Recurring */}
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => setRecurring(e.target.checked)}
+              className="w-4 h-4 accent-indigo-500"
+            />
+            <span className="text-sm font-medium text-gray-300">Recurring invoice</span>
+          </label>
+
+          {recurring && (
+            <div className="flex flex-col gap-2 pl-6">
+              <label className="block text-sm font-medium text-gray-300">Interval</label>
+              <select
+                value={intervalDays}
+                onChange={(e) => setIntervalDays(Number(e.target.value) as 7 | 30)}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value={7}>Weekly (every 7 days)</option>
+                <option value={30}>Monthly (every 30 days)</option>
+              </select>
+              <p className="text-xs text-indigo-300">
+                Next invoice:{" "}
+                {new Date(
+                  Date.now() + (deadlineDays + intervalDays) * 86400_000
+                ).toLocaleDateString()}
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
